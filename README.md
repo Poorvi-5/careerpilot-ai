@@ -1,83 +1,121 @@
-# 🚀 CareerPilot AI
+# 🎯 CareerPilot AI
 
-**CareerPilot AI** is an agentic AI-powered career assistant that analyzes a candidate's resume against a job description, identifies skill gaps, generates a personalized learning roadmap, and conducts an adaptive AI mock interview.
+### Agentic Resume & Interview Intelligence System
 
-## ✨ Features
+CareerPilot AI is an AI-powered career assistant that analyzes a candidate's resume against a job description, identifies skill gaps, generates a personalized learning roadmap, and conducts an adaptive technical mock interview.
+
+The system combines **LLMs, RAG, FAISS, LangGraph, and Streamlit** to create an end-to-end AI career intelligence platform.
+
+---
+
+## 🚀 Features
 
 * 📄 Resume PDF parsing
-* 🤖 AI-powered resume analysis
+* 🧠 AI-powered resume analysis
 * 💼 Job description analysis
-* 🎯 Resume–JD skill matching
-* 📊 Job readiness score
-* ⚠️ Missing skill identification
+* 🎯 Resume-to-JD skill matching
+* 📊 Match score and missing skills identification
 * 🗺️ Personalized 4-week learning roadmap
-* 🎤 AI-powered mock interview
-* 🧠 Adaptive interview questions based on previous performance
-* 📋 AI answer evaluation
-* 📊 Final interview performance report
-* 💾 Persistent interview state using LangGraph checkpoints
-* 🧵 Thread-based interview sessions
+* 🔎 RAG-based resume knowledge retrieval
+* 🤖 Adaptive AI mock interview
+* 📝 AI answer evaluation
+* 🔄 Difficulty adaptation based on previous answers
+* 🧩 LangGraph agentic workflow
+* 💾 SQLite checkpoint-based persistence
+* 📊 Final interview performance dashboard
+* 📄 Downloadable interview PDF report
+* ⚠️ Centralized Gemini API error handling
+
+---
 
 ## 🏗️ System Architecture
 
 ```text
                     ┌─────────────────────┐
-                    │    Streamlit UI     │
+                    │      Streamlit      │
+                    │         UI          │
                     └──────────┬──────────┘
                                │
-                               ▼
-                    ┌─────────────────────┐
-                    │   Resume + JD Input │
+                 ┌─────────────▼─────────────┐
+                 │     Resume + Job Input    │
+                 └─────────────┬─────────────┘
+                               │
+              ┌────────────────▼────────────────┐
+              │       Resume PDF Parser         │
+              └────────────────┬────────────────┘
+                               │
+          ┌────────────────────▼────────────────────┐
+          │             Gemini LLM                  │
+          │                                         │
+          │ Resume Analysis                         │
+          │ JD Analysis                             │
+          │ Skill Matching                          │
+          │ Roadmap Generation                      │
+          └────────────────────┬────────────────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │    FAISS + RAG      │
+                    │ Resume Knowledge    │
+                    │      Retrieval      │
                     └──────────┬──────────┘
                                │
-              ┌────────────────┴────────────────┐
-              ▼                                 ▼
-      ┌───────────────┐                 ┌───────────────┐
-      │ Resume Parser │                 │  JD Analyzer  │
-      └───────┬───────┘                 └───────┬───────┘
-              │                                 │
-              └──────────────┬──────────────────┘
-                             ▼
-                    ┌─────────────────────┐
-                    │   Skill Matcher     │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │ Roadmap Generator   │
-                    └─────────────────────┘
-
-                    AI Mock Interview
-                           │
-                           ▼
-                    ┌─────────────────────┐
+                    ┌──────────▼──────────┐
                     │     LangGraph       │
+                    │  Interview Agent    │
                     └──────────┬──────────┘
                                │
-              ┌────────────────┼────────────────┐
-              ▼                ▼                ▼
-       Generate Question   Evaluate Answer   Final Report
-              │                │                │
-              └────────────────┴────────────────┘
+              ┌────────────────▼────────────────┐
+              │      Adaptive Interview        │
+              │                                 │
+              │ Question → Answer → Evaluation │
+              │          → Next Question        │
+              └────────────────┬────────────────┘
                                │
-                               ▼
-                    ┌─────────────────────┐
-                    │ SQLite Checkpoints  │
+                    ┌──────────▼──────────┐
+                    │   Final Report      │
+                    │ Dashboard + PDF     │
                     └─────────────────────┘
 ```
 
+---
+
 ## 🛠️ Tech Stack
 
-| Technology    | Purpose                         |
-| ------------- | ------------------------------- |
-| Python        | Core programming language       |
-| Streamlit     | Web interface                   |
-| PyMuPDF       | Resume PDF text extraction      |
-| Gemini        | Large Language Model            |
-| LangChain     | LLM integration                 |
-| LangGraph     | Agentic interview workflow      |
-| SQLite        | Persistent checkpoints          |
-| python-dotenv | Environment variable management |
+### Programming Language
+
+* Python
+
+### Frontend
+
+* Streamlit
+* HTML/CSS
+
+### AI / LLM
+
+* Google Gemini
+* LangChain
+* LangGraph
+
+### RAG
+
+* FAISS
+* Google Generative AI Embeddings
+* Recursive Character Text Splitter
+
+### Document Processing
+
+* PyMuPDF
+
+### Persistence
+
+* SQLite
+* LangGraph Checkpointer
+
+### Reporting
+
+* ReportLab
+
+---
 
 ## 📁 Project Structure
 
@@ -96,7 +134,9 @@ careerpilot-ai/
 │   ├── skill_matcher.py
 │   ├── roadmap_generator.py
 │   ├── answer_evaluator.py
-│   └── interview_report.py
+│   ├── interview_report.py
+│   ├── pdf_report.py
+│   └── rag_service.py
 │
 ├── graph/
 │   ├── __init__.py
@@ -105,39 +145,45 @@ careerpilot-ai/
 │   └── workflow.py
 │
 ├── app.py
+├── style.css
 ├── requirements.txt
+├── .env
 ├── .gitignore
-└── README.md
+└── careerpilot_checkpoints.db
 ```
 
-## ⚙️ Installation
+---
 
-Clone the repository:
+## ⚙️ How to Run
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/Poorvi-5/careerpilot-ai.git
 cd careerpilot-ai
 ```
 
-Create a virtual environment:
+### 2. Create a virtual environment
 
 ```bash
 python -m venv venv
 ```
 
-Activate it on Windows PowerShell:
+### 3. Activate the virtual environment
+
+#### Windows PowerShell
 
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
 
-Install dependencies:
+### 4. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 🔑 Environment Setup
+### 5. Configure Gemini API
 
 Create a `.env` file in the project root:
 
@@ -147,9 +193,7 @@ GOOGLE_API_KEY=your_gemini_api_key
 
 Never commit the `.env` file to GitHub.
 
-## ▶️ Run the Application
-
-Start Streamlit:
+### 6. Run the application
 
 ```bash
 streamlit run app.py
@@ -157,118 +201,149 @@ streamlit run app.py
 
 The application will open in your browser.
 
-## 🎯 Workflow
+---
 
-### 1. Resume Analysis
+## 🔄 Application Workflow
 
-Upload a resume PDF.
+### 1. Resume & Job Analysis
 
-CareerPilot AI extracts and analyzes:
+Upload a resume PDF and paste a job description.
 
-* Education
-* Skills
-* Experience
-* Projects
-* Certifications
+CareerPilot AI:
 
-### 2. Job Description Analysis
+* Extracts resume text
+* Analyzes candidate information
+* Analyzes job requirements
+* Compares required and available skills
+* Generates a skill match score
 
-Paste the target job description.
+### 2. Learning Roadmap
 
-The system extracts:
+Based on missing skills, the system generates a personalized 4-week learning roadmap containing:
 
-* Required skills
-* Preferred skills
-* Experience requirements
-* Responsibilities
+* Skills to learn
+* Topics
+* Practice tasks
+* Mini projects
+* Final project
+* Interview preparation
 
-### 3. Skill Matching
+### 3. AI Mock Interview
 
-The system compares the resume with the job description and provides:
+The candidate starts a 5-question technical interview.
 
-* Match score
-* Matched skills
-* Missing skills
-* Extra skills
-* Recommendation
+The system:
 
-### 4. Personalized Roadmap
+```text
+Generate Question
+       ↓
+Candidate Answer
+       ↓
+AI Evaluation
+       ↓
+Analyze Performance
+       ↓
+Generate Next Question
+```
 
-Based on missing skills, CareerPilot AI generates a practical 4-week learning roadmap.
+The next question adapts according to the candidate's previous performance.
 
-### 5. AI Mock Interview
+### 4. RAG
 
-The system generates interview questions based on the candidate's resume and target job.
+Resume information is converted into embeddings and stored in FAISS.
 
-After each answer, the AI evaluates:
+During the interview, relevant resume information is retrieved and supplied to the interviewer agent.
 
-* Correctness
-* Technical depth
-* Relevance
-* Communication
+This helps the interviewer ask questions based on the candidate's actual resume.
 
-The next question can adapt according to the candidate's previous performance.
+### 5. Final Report
 
-### 6. Final Report
-
-After completing the interview, CareerPilot AI generates an overall performance report containing:
+After five questions, CareerPilot AI generates:
 
 * Overall score
-* Technical knowledge
-* Problem-solving
-* Communication
+* Technical knowledge score
+* Problem-solving score
+* Communication score
 * Strengths
 * Weaknesses
 * Topics to improve
 * Final recommendation
 
+A PDF report can also be generated.
+
+---
+
 ## 🧠 Agentic Workflow
 
-CareerPilot AI uses **LangGraph** to manage the interview workflow.
+LangGraph manages the interview workflow.
 
 ```text
 START
   │
   ▼
-Generate Question
+Retrieve Resume Context
   │
   ▼
-Candidate Answer
+Generate Interview Question
+  │
+  ▼
+Candidate Answers
   │
   ▼
 Evaluate Answer
   │
-  ▼
-Next Question
+  ├──────► Next Question
   │
   ▼
-Repeat
+Generate Final Report
   │
   ▼
-Final Report
+END
 ```
 
-Interview state is persisted using SQLite checkpoints, allowing the workflow to maintain state for a specific interview thread.
+The workflow uses **state management, conditional routing, checkpoints, and an adaptive interviewer agent**.
 
-## 🔮 Future Improvements
+---
 
-* 🔎 Resume and job-description RAG
-* 📚 FAISS/Chroma vector database
-* 🧠 More advanced multi-agent architecture
-* 🎙️ Voice-based mock interviews
-* 📈 Interview performance analytics
-* 📄 AI resume improvement suggestions
-* 🌐 Cloud deployment
-* 🔐 User authentication
-* 💾 Persistent user profiles
-* 📊 Interactive dashboards
+## 🔐 Security
+
+Sensitive configuration is stored in environment variables.
+
+The following files are excluded from Git:
+
+```text
+.env
+venv/
+__pycache__/
+*.pyc
+careerpilot_checkpoints.db
+```
+
+---
+
+## 🎯 Future Improvements
+
+* Voice-based mock interviews
+* Resume improvement suggestions
+* Multiple interview modes
+* Company-specific interview preparation
+* Job recommendation system
+* Advanced analytics dashboard
+* Cloud deployment
+* Authentication and user profiles
+* Long-term candidate memory
+* Multi-agent career planning
+
+---
 
 ## 👩‍💻 Author
 
 **Poorvi Sharma**
 
-CSE-AIML | Artificial Intelligence & Machine Learning
+CSE-AIML Student
 
 ---
 
-⭐ If you find this project useful, consider giving the repository a star!
+## ⭐ Project Goal
+
+CareerPilot AI aims to provide a complete AI-powered career preparation workflow — from **resume analysis and skill-gap detection to personalized learning and adaptive interview preparation**.

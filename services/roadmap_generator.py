@@ -1,4 +1,4 @@
-from services.llm_service import get_llm
+from services.llm_service import get_llm, safe_invoke
 
 
 def generate_roadmap(skill_match):
@@ -37,6 +37,7 @@ Important:
 - Keep the answer concise.
 """
 
-    response = llm.invoke(prompt)
-
-    return response.content
+    return safe_invoke(
+        llm,
+        prompt
+    )

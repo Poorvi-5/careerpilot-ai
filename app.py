@@ -3,12 +3,12 @@ import uuid
 import streamlit as st
 
 from services.resume_parser import extract_text_from_pdf
-from services.rag_service import create_vector_store
-from services.pdf_report import create_pdf_report
 from services.resume_analyzer import analyze_resume
 from services.jd_analyzer import analyze_job_description
 from services.skill_matcher import match_skills
 from services.roadmap_generator import generate_roadmap
+from services.pdf_report import create_pdf_report
+from services.rag_service import create_vector_store
 
 from graph.workflow import create_interview_graph
 
@@ -19,7 +19,7 @@ from graph.workflow import create_interview_graph
 
 st.set_page_config(
     page_title="CareerPilot AI",
-    page_icon="🚀",
+    page_icon="🎯",
     layout="wide"
 )
 
@@ -30,26 +30,21 @@ st.set_page_config(
 
 def load_css():
 
-    with open("style.css") as f:
+    try:
 
-        st.markdown(
-            f"<style>{f.read()}</style>",
-            unsafe_allow_html=True
-        )
+        with open("style.css", "r", encoding="utf-8") as file:
+
+            st.markdown(
+                f"<style>{file.read()}</style>",
+                unsafe_allow_html=True
+            )
+
+    except FileNotFoundError:
+
+        pass
 
 
 load_css()
-
-
-# =========================================================
-# TITLE
-# =========================================================
-
-st.title("🚀 CareerPilot AI")
-
-st.write(
-    "AI-powered Resume, Job Matching and Mock Interview System"
-)
 
 
 # =========================================================
@@ -68,17 +63,29 @@ if "skill_match" not in st.session_state:
 if "roadmap" not in st.session_state:
     st.session_state.roadmap = ""
 
+if "resume_text" not in st.session_state:
+    st.session_state.resume_text = ""
+
+if "job_description" not in st.session_state:
+    st.session_state.job_description = ""
+
+if "vector_store" not in st.session_state:
+    st.session_state.vector_store = None
+
 if "interview_graph" not in st.session_state:
     st.session_state.interview_graph = create_interview_graph()
 
 if "thread_id" not in st.session_state:
-    st.session_state.thread_id = ""
+    st.session_state.thread_id = None
 
 if "question" not in st.session_state:
     st.session_state.question = ""
 
 if "question_number" not in st.session_state:
     st.session_state.question_number = 1
+
+if "answer" not in st.session_state:
+    st.session_state.answer = ""
 
 if "evaluation" not in st.session_state:
     st.session_state.evaluation = ""
@@ -92,39 +99,21 @@ if "interview_history" not in st.session_state:
 if "final_report" not in st.session_state:
     st.session_state.final_report = {}
 
-if "vector_store" not in st.session_state:
-    st.session_state.vector_store = None
-
 
 # =========================================================
-# SIDEBAR
+# HEADER
 # =========================================================
 
-st.sidebar.header("📂 CareerPilot AI")
+st.title("🎯 CareerPilot AI")
 
-st.sidebar.write(
-    "Your AI career assistant for resume analysis, "
-    "job matching and interview preparation."
-)
-
-st.sidebar.divider()
-
-st.sidebar.markdown(
+st.markdown(
     """
-### 🧠 AI Pipeline
+    ### Agentic Resume & Interview Intelligence System
 
-📄 Resume Analysis  
-⬇️  
-💼 Job Analysis  
-⬇️  
-🎯 Skill Matching  
-⬇️  
-🗺️ Learning Roadmap  
-⬇️  
-🎤 AI Mock Interview  
-⬇️  
-🏆 Final Report
-"""
+    Analyze your resume, compare it with a job description,
+    generate a personalized learning roadmap, and practice
+    with an adaptive AI interviewer.
+    """
 )
 
 
@@ -134,342 +123,436 @@ st.sidebar.markdown(
 
 tab1, tab2, tab3, tab4 = st.tabs(
     [
-        "📊 Resume & Job Analysis",
+        "📄 Resume & Job Analysis",
         "🗺️ Learning Roadmap",
-        "🎤 AI Mock Interview",
-        "🏆 Final Report"
+        "🤖 AI Mock Interview",
+        "📊 Final Report"
     ]
 )
 
 
-
 # =========================================================
-# TAB 1 — RESUME & JOB ANALYSIS
+# TAB 1
+# RESUME & JOB ANALYSIS
 # =========================================================
 
 with tab1:
 
     st.header("📄 Resume & Job Analysis")
 
-    st.write(
-        "Upload your resume and paste the target job description "
-        "to evaluate your job readiness."
-    )
+    col1, col2 = st.columns(2)
 
     # -----------------------------------------------------
-    # Resume Upload
+    # RESUME
     # -----------------------------------------------------
 
-    st.subheader("📄 Upload Resume")
+    with col1:
 
-    resume = st.file_uploader(
-        "Upload your Resume PDF",
-        type=["pdf"]
-    )
+        st.subheader("Upload Resume")
 
-    # -----------------------------------------------------
-    # Job Description
-    # -----------------------------------------------------
-
-    st.subheader("💼 Job Description")
-
-    job_description = st.text_area(
-        "Paste the Job Description here",
-        height=250,
-        placeholder="Paste the complete job description..."
-    )
+        uploaded_resume = st.file_uploader(
+            "Upload your resume PDF",
+            type=["pdf"]
+        )
 
     # -----------------------------------------------------
-    # Analyze Button
+    # JOB DESCRIPTION
     # -----------------------------------------------------
+
+    with col2:
+
+        st.subheader("Job Description")
+
+        job_description = st.text_area(
+            "Paste the job description here",
+            height=250,
+            placeholder="Paste the complete job description..."
+        )
+
+    st.divider()
+
+    # =====================================================
+    # ANALYZE BUTTON
+    # =====================================================
 
     if st.button(
-        "🔍 Analyze Resume & Job",
+        "🚀 Analyze Resume & Job",
         use_container_width=True
     ):
 
-        if resume is None:
+        # -------------------------------------------------
+        # CHECK RESUME
+        # -------------------------------------------------
 
-            st.warning(
-                "⚠️ Please upload your resume first."
+        if uploaded_resume is None:
+
+            st.error(
+                "❌ Please upload your resume PDF."
             )
 
-        elif not job_description.strip():
+            st.stop()
 
-            st.warning(
-                "⚠️ Please enter the job description."
+        # -------------------------------------------------
+        # CHECK FILE SIZE
+        # -------------------------------------------------
+
+        if uploaded_resume.size > 5 * 1024 * 1024:
+
+            st.error(
+                "❌ Resume PDF must be smaller than 5 MB."
             )
 
-        else:
+            st.stop()
 
-            # ---------------------------------------------
-            # Resume Parsing
-            # ---------------------------------------------
+        # -------------------------------------------------
+        # CHECK JOB DESCRIPTION
+        # -------------------------------------------------
 
-            with st.spinner(
-                "📄 Reading resume..."
-            ):
+        if not job_description.strip():
+
+            st.error(
+                "❌ Please paste the job description."
+            )
+
+            st.stop()
+
+        # -------------------------------------------------
+        # SAVE JOB DESCRIPTION
+        # -------------------------------------------------
+
+        st.session_state.job_description = (
+            job_description
+        )
+
+        # =================================================
+        # EXTRACT RESUME TEXT
+        # =================================================
+
+        with st.spinner(
+            "📄 Reading your resume..."
+        ):
+
+            try:
 
                 resume_text = extract_text_from_pdf(
-                    resume
+                    uploaded_resume
                 )
 
-            # ---------------------------------------------
-            # Create Resume Knowledge Base
-            # ---------------------------------------------
+            except Exception as e:
 
-            with st.spinner(
-                "🧠 Creating resume knowledge base..."
-            ):
-
-                st.session_state.vector_store = (
-                    create_vector_store(resume_text)
+                st.error(
+                    "❌ Unable to read the PDF."
                 )
 
-            # ---------------------------------------------
-            # Resume Analysis
-            # ---------------------------------------------
+                st.exception(e)
 
-            with st.spinner(
-                "🤖 Analyzing resume with Gemini..."
-            ):
+                st.stop()
 
-                resume_analysis = analyze_resume(
-                    resume_text
-                )
+        # -------------------------------------------------
+        # CHECK EMPTY PDF
+        # -------------------------------------------------
 
-                st.session_state.resume_analysis = (
-                    resume_analysis
-                )
+        if not resume_text.strip():
 
-            # ---------------------------------------------
-            # JD Analysis
-            # ---------------------------------------------
-
-            with st.spinner(
-                "💼 Analyzing job description..."
-            ):
-
-                jd_analysis = analyze_job_description(
-                    job_description
-                )
-
-                st.session_state.jd_analysis = (
-                    jd_analysis
-                )
-
-            # ---------------------------------------------
-            # Skill Matching
-            # ---------------------------------------------
-
-            with st.spinner(
-                "🔎 Matching resume skills with JD..."
-            ):
-
-                skill_match = match_skills(
-                    resume_analysis,
-                    jd_analysis
-                )
-
-                st.session_state.skill_match = (
-                    skill_match
-                )
-
-            # ---------------------------------------------
-            # Roadmap
-            # ---------------------------------------------
-
-            with st.spinner(
-                "🗺️ Creating personalized roadmap..."
-            ):
-
-                roadmap = generate_roadmap(
-                    skill_match
-                )
-
-                st.session_state.roadmap = (
-                    roadmap
-                )
-
-            st.success(
-                "✅ Resume and Job analysis completed!"
+            st.error(
+                "❌ Could not extract text from the resume."
             )
 
-    # -----------------------------------------------------
-    # Resume Analysis Result
-    # -----------------------------------------------------
+            st.warning(
+                "Please upload a text-based PDF resume."
+            )
+
+            st.stop()
+
+        # Save resume text
+        st.session_state.resume_text = resume_text
+
+        # =================================================
+        # CREATE RAG VECTOR STORE
+        # =================================================
+
+        with st.spinner(
+            "🧠 Creating resume knowledge base..."
+        ):
+
+            try:
+
+                st.session_state.vector_store = (
+                    create_vector_store(
+                        resume_text
+                    )
+                )
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Failed to create resume knowledge base."
+                )
+
+                st.exception(e)
+
+                st.stop()
+
+        # =================================================
+        # RESUME ANALYSIS
+        # =================================================
+
+        with st.spinner(
+            "🔍 Analyzing resume..."
+        ):
+
+            try:
+
+                st.session_state.resume_analysis = (
+                    analyze_resume(
+                        resume_text
+                    )
+                )
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Resume analysis failed."
+                )
+
+                st.exception(e)
+
+                st.stop()
+
+        # =================================================
+        # JOB DESCRIPTION ANALYSIS
+        # =================================================
+
+        with st.spinner(
+            "💼 Analyzing job description..."
+        ):
+
+            try:
+
+                st.session_state.jd_analysis = (
+                    analyze_job_description(
+                        job_description
+                    )
+                )
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Job description analysis failed."
+                )
+
+                st.exception(e)
+
+                st.stop()
+
+        # =================================================
+        # SKILL MATCHING
+        # =================================================
+
+        with st.spinner(
+            "🎯 Matching resume with job requirements..."
+        ):
+
+            try:
+
+                st.session_state.skill_match = (
+                    match_skills(
+                        st.session_state.resume_analysis,
+                        st.session_state.jd_analysis
+                    )
+                )
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Skill matching failed."
+                )
+
+                st.exception(e)
+
+                st.stop()
+
+        # =================================================
+        # LEARNING ROADMAP
+        # =================================================
+
+        with st.spinner(
+            "🗺️ Generating personalized roadmap..."
+        ):
+
+            try:
+
+                st.session_state.roadmap = (
+                    generate_roadmap(
+                        st.session_state.skill_match
+                    )
+                )
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Roadmap generation failed."
+                )
+
+                st.exception(e)
+
+                st.stop()
+
+        st.success(
+            "✅ Resume and job analysis completed successfully!"
+        )
+
+    # =====================================================
+    # DISPLAY RESULTS
+    # =====================================================
 
     if st.session_state.resume_analysis:
 
         st.divider()
 
-        st.subheader("📄 Resume Analysis")
+        st.header("🔍 Analysis Results")
 
-        st.write(
-            st.session_state.resume_analysis
-        )
+        # -------------------------------------------------
+        # RESUME ANALYSIS
+        # -------------------------------------------------
 
-    # -----------------------------------------------------
-    # JD Analysis Result
-    # -----------------------------------------------------
+        with st.expander(
+            "📄 Resume Analysis",
+            expanded=True
+        ):
 
-    if st.session_state.jd_analysis:
+            st.markdown(
+                st.session_state.resume_analysis
+            )
 
-        st.divider()
+        # -------------------------------------------------
+        # JD ANALYSIS
+        # -------------------------------------------------
 
-        st.subheader("💼 Job Description Analysis")
+        with st.expander(
+            "💼 Job Description Analysis",
+            expanded=True
+        ):
 
-        st.write(
-            st.session_state.jd_analysis
-        )
+            st.markdown(
+                st.session_state.jd_analysis
+            )
 
-    # -----------------------------------------------------
-    # Skill Match Result
-    # -----------------------------------------------------
+        # -------------------------------------------------
+        # SKILL MATCH
+        # -------------------------------------------------
 
-    if st.session_state.skill_match:
+        with st.expander(
+            "🎯 Resume ↔ Job Skill Match",
+            expanded=True
+        ):
 
-        st.divider()
+            st.markdown(
+                st.session_state.skill_match
+            )
 
-        st.subheader("🎯 Resume-JD Skill Match")
+        # -------------------------------------------------
+        # RAG STATUS
+        # -------------------------------------------------
 
-        st.write(
-            st.session_state.skill_match
-        )
+        if st.session_state.vector_store is not None:
 
+            st.success(
+                "🧠 Resume knowledge base is ready for AI interview."
+            )
 
 
 # =========================================================
-# TAB 2 — LEARNING ROADMAP
+# TAB 2
+# LEARNING ROADMAP
 # =========================================================
 
 with tab2:
 
     st.header("🗺️ Personalized Learning Roadmap")
 
-    st.write(
-        "Your roadmap is generated based on the skills "
-        "missing from your target job requirements."
-    )
-
     if st.session_state.roadmap:
 
-        st.write(
+        st.markdown(
             st.session_state.roadmap
         )
 
     else:
 
         st.info(
-            "💡 First complete Resume & Job Analysis "
+            "First analyze your resume and job description "
             "to generate your personalized roadmap."
         )
 
 
 # =========================================================
-# TAB 3 — AI MOCK INTERVIEW
+# TAB 3
+# AI MOCK INTERVIEW
 # =========================================================
 
 with tab3:
 
-    st.header("🎤 AI Mock Interview")
+    st.header("🤖 AI Mock Interview")
 
-    st.write(
-        "Practice technical interview questions generated "
-        "specifically for your resume and target job."
+    st.markdown(
+        """
+        The AI interviewer adapts the difficulty of the next
+        question based on your previous answer.
+        """
     )
 
-    # -----------------------------------------------------
-    # Start Interview
-    # -----------------------------------------------------
+    # =====================================================
+    # START INTERVIEW
+    # =====================================================
 
-    if st.button(
-        "🎯 Start Interview",
-        use_container_width=True
-    ):
+    if not st.session_state.interview_started:
 
-        if resume is None:
+        if st.button(
+            "🎤 Start AI Interview",
+            use_container_width=True
+        ):
 
-            st.warning(
-                "⚠️ Please upload your resume in the "
-                "'Resume & Job Analysis' tab first."
-            )
-
-        elif not job_description.strip():
-
-            st.warning(
-                "⚠️ Please enter the job description in the "
-                "'Resume & Job Analysis' tab first."
-            )
-
-        else:
-
-            with st.spinner(
-                "🤖 Preparing your interview..."
+            if (
+                not st.session_state.resume_analysis
+                or not st.session_state.job_description
             ):
 
-                # -----------------------------------------
-                # Reuse Resume Analysis if available
-                # -----------------------------------------
-
-                if st.session_state.resume_analysis:
-
-                    resume_analysis = (
-                        st.session_state.resume_analysis
-                    )
-
-                else:
-
-                    resume_text = extract_text_from_pdf(
-                        resume
-                    )
-
-                    resume_analysis = analyze_resume(
-                        resume_text
-                    )
-
-                    st.session_state.resume_analysis = (
-                        resume_analysis
-                    )
-
-                # -----------------------------------------
-                # Create New Interview
-                # -----------------------------------------
-
-                st.session_state.thread_id = str(
-                    uuid.uuid4()
+                st.error(
+                    "❌ Please complete Resume & Job Analysis first."
                 )
 
-                st.session_state.question_number = 1
+            else:
 
+                # Create unique thread
+                st.session_state.thread_id = (
+                    str(uuid.uuid4())
+                )
+
+                # Reset interview
                 st.session_state.question = ""
-
+                st.session_state.answer = ""
                 st.session_state.evaluation = ""
-
+                st.session_state.question_number = 1
                 st.session_state.interview_history = []
-
                 st.session_state.final_report = {}
 
-                st.session_state.interview_started = True
-
-                # -----------------------------------------
-                # Initial State
-                # -----------------------------------------
+                # -------------------------------------------------
+                # INITIAL GRAPH STATE
+                # -------------------------------------------------
 
                 initial_state = {
 
                     "job_description":
-                        job_description,
+                        st.session_state.job_description,
 
                     "resume_analysis":
-                        resume_analysis,
+                        st.session_state.resume_analysis,
 
                     "vector_store":
                         st.session_state.vector_store,
 
-                    "retrieved_context": 
+                    "retrieved_context":
                         "",
-
 
                     "question":
                         "",
@@ -493,195 +576,287 @@ with tab3:
                         "question"
                 }
 
-                # -----------------------------------------
-                # Generate First Question
-                # -----------------------------------------
+                config = {
 
-                result = (
-                    st.session_state
-                    .interview_graph
-                    .invoke(
+                    "configurable": {
 
-                        initial_state,
+                        "thread_id":
+                            st.session_state.thread_id
+                    }
+                }
 
-                        config={
-                            "configurable": {
-                                "thread_id":
-                                    st.session_state.thread_id
-                            }
-                        }
-                    )
-                )
+                with st.spinner(
+                    "🤖 Preparing your first interview question..."
+                ):
+
+                    try:
+
+                        result = (
+                            st.session_state.interview_graph.invoke(
+                                initial_state,
+                                config=config
+                            )
+                        )
+
+                    except Exception as e:
+
+                        st.error(
+                            "❌ Failed to start interview."
+                        )
+
+                        st.exception(e)
+
+                        st.stop()
 
                 st.session_state.question = (
                     result["question"]
                 )
 
-            st.success(
-                "🎤 Interview Started!"
-            )
+                st.session_state.interview_started = True
 
-    # -----------------------------------------------------
-    # Current Question
-    # -----------------------------------------------------
+                st.rerun()
+
+    # =====================================================
+    # INTERVIEW STARTED
+    # =====================================================
 
     if st.session_state.interview_started:
 
-        st.divider()
+        st.success(
+            f"Interview Session: "
+            f"{st.session_state.thread_id}"
+        )
+
+        # -------------------------------------------------
+        # PROGRESS
+        # -------------------------------------------------
+
+        current_question = (
+            st.session_state.question_number
+        )
+
+        progress = (
+            current_question / 5
+        )
 
         st.progress(
-            min(
-                st.session_state.question_number / 5,
-                1.0
+            min(progress, 1.0)
+        )
+
+        st.caption(
+            f"Question {current_question} of 5"
+        )
+
+        st.divider()
+
+        # -------------------------------------------------
+        # QUESTION
+        # -------------------------------------------------
+
+        if st.session_state.question:
+
+            st.subheader(
+                f"❓ Question {current_question}"
             )
-        )
 
-        st.subheader(
-            f"❓ Question "
-            f"{st.session_state.question_number} / 5"
-        )
+            st.info(
+                st.session_state.question
+            )
 
-        st.info(
-            st.session_state.question
-        )
+            # -------------------------------------------------
+            # ANSWER
+            # -------------------------------------------------
 
-        # -------------------------------------------------
-        # Answer
-        # -------------------------------------------------
+            answer = st.text_area(
+                "Your Answer",
+                height=200,
+                key=f"answer_{current_question}",
+                placeholder="Type your answer here..."
+            )
 
-        answer = st.text_area(
+            # -------------------------------------------------
+            # SUBMIT
+            # -------------------------------------------------
 
-            "✍️ Your Answer",
+            if st.button(
+                "📤 Submit Answer",
+                use_container_width=True
+            ):
 
-            height=200,
+                if not answer.strip():
 
-            placeholder="Type your answer here...",
+                    st.warning(
+                        "⚠️ Please write an answer first."
+                    )
 
-            key=f"answer_{st.session_state.question_number}"
-        )
+                else:
 
-        # -------------------------------------------------
-        # Submit Answer
-        # -------------------------------------------------
+                    st.session_state.answer = answer
 
-        if st.button(
-            "📤 Submit Answer",
-            use_container_width=True
-        ):
+                    config = {
 
-            if not answer.strip():
+                        "configurable": {
 
-                st.warning(
-                    "⚠️ Please enter your answer."
-                )
-
-            else:
-
-                with st.spinner(
-                    "🤖 AI is evaluating your answer..."
-                ):
-
-                    # -------------------------------------
-                    # Get Saved State
-                    # -------------------------------------
+                            "thread_id":
+                                st.session_state.thread_id
+                        }
+                    }
 
                     current_state = (
-                        st.session_state
-                        .interview_graph
-                        .get_state(
-
-                            {
-                                "configurable": {
-                                    "thread_id":
-                                        st.session_state.thread_id
-                                }
-                            }
-                        )
+                        st.session_state.interview_graph
+                        .get_state(config)
+                        .values
                     )
 
-                    # -------------------------------------
-                    # Convert State
-                    # -------------------------------------
+                    current_state["answer"] = answer
 
-                    state_values = dict(
-                        current_state.values
-                    )
+                    current_state["action"] = "evaluate"
 
-                    # -------------------------------------
-                    # Add Answer
-                    # -------------------------------------
+                    with st.spinner(
+                        "🧠 Evaluating your answer..."
+                    ):
 
-                    state_values["answer"] = answer
+                        try:
 
-                    # -------------------------------------
-                    # Evaluation Action
-                    # -------------------------------------
+                            result = (
+                                st.session_state.interview_graph
+                                .invoke(
+                                    current_state,
+                                    config=config
+                                )
+                            )
 
-                    state_values["action"] = "evaluate"
+                        except Exception as e:
 
-                    # -------------------------------------
-                    # Run Evaluation
-                    # -------------------------------------
+                            st.error(
+                                "❌ Answer evaluation failed."
+                            )
 
-                    result = (
-                        st.session_state
-                        .interview_graph
-                        .invoke(
+                            st.exception(e)
 
-                            state_values,
-
-                            config={
-                                "configurable": {
-                                    "thread_id":
-                                        st.session_state.thread_id
-                                }
-                            }
-                        )
-                    )
-
-                    # -------------------------------------
-                    # Save Evaluation
-                    # -------------------------------------
+                            st.stop()
 
                     st.session_state.evaluation = (
                         result["evaluation"]
                     )
 
-                    # -------------------------------------
-                    # Save History
-                    # -------------------------------------
-
                     st.session_state.interview_history = (
                         result["interview_history"]
                     )
 
-                st.success(
-                    "✅ Answer Evaluated!"
+                    st.rerun()
+
+            # =================================================
+            # EVALUATION
+            # =================================================
+
+            if st.session_state.evaluation:
+
+                st.divider()
+
+                st.subheader(
+                    "📝 AI Evaluation"
                 )
 
-        # -------------------------------------------------
-        # Show Evaluation
-        # -------------------------------------------------
+                st.markdown(
+                    st.session_state.evaluation
+                )
 
-        if st.session_state.evaluation:
+                # -------------------------------------------------
+                # NEXT QUESTION
+                # -------------------------------------------------
 
-            st.divider()
+                if (
+                    st.session_state.question_number
+                    < 5
+                ):
 
-            st.subheader("📊 AI Evaluation")
+                    if st.button(
+                        "➡️ Next Question",
+                        use_container_width=True
+                    ):
 
-            st.write(
-                st.session_state.evaluation
-            )
+                        st.session_state.question_number += 1
 
-        # -------------------------------------------------
-        # Interview History
-        # -------------------------------------------------
+                        config = {
+
+                            "configurable": {
+
+                                "thread_id":
+                                    st.session_state.thread_id
+                            }
+                        }
+
+                        current_state = (
+                            st.session_state.interview_graph
+                            .get_state(config)
+                            .values
+                        )
+
+                        current_state["question_number"] = (
+                            st.session_state.question_number
+                        )
+
+                        current_state["answer"] = ""
+
+                        current_state["evaluation"] = ""
+
+                        current_state["action"] = "question"
+
+                        with st.spinner(
+                            "🤖 Generating adaptive question..."
+                        ):
+
+                            try:
+
+                                result = (
+                                    st.session_state.interview_graph
+                                    .invoke(
+                                        current_state,
+                                        config=config
+                                    )
+                                )
+
+                            except Exception as e:
+
+                                st.error(
+                                    "❌ Failed to generate next question."
+                                )
+
+                                st.exception(e)
+
+                                st.stop()
+
+                        st.session_state.question = (
+                            result["question"]
+                        )
+
+                        st.session_state.evaluation = ""
+
+                        st.rerun()
+
+                else:
+
+                    st.success(
+                        "🎉 You completed all 5 interview questions!"
+                    )
+
+                    st.info(
+                        "Go to the Final Report tab "
+                        "to generate your complete interview report."
+                    )
+
+        # =================================================
+        # INTERVIEW HISTORY
+        # =================================================
 
         if st.session_state.interview_history:
 
             st.divider()
 
-            st.subheader("📚 Interview History")
+            st.subheader(
+                "📚 Interview History"
+            )
 
             for item in st.session_state.interview_history:
 
@@ -689,256 +864,106 @@ with tab3:
                     f"Question {item['question_number']}"
                 ):
 
-                    st.write("**Question:**")
+                    st.markdown(
+                        "**Question:**"
+                    )
 
                     st.write(
                         item["question"]
                     )
 
-                    st.write("**Your Answer:**")
+                    st.markdown(
+                        "**Your Answer:**"
+                    )
 
                     st.write(
                         item["answer"]
                     )
 
-                    st.write("**AI Evaluation:**")
+                    st.markdown(
+                        "**Evaluation:**"
+                    )
 
                     st.write(
                         item["evaluation"]
                     )
 
-        # -------------------------------------------------
-        # Next Question
-        # -------------------------------------------------
-
-        if (
-            st.session_state.evaluation
-            and len(
-                st.session_state.interview_history
-            ) < 5
-        ):
-
-            if st.button(
-                "➡️ Next Question",
-                use_container_width=True
-            ):
-
-                with st.spinner(
-                    "🤖 Generating next question..."
-                ):
-
-                    # -------------------------------------
-                    # Get Saved State
-                    # -------------------------------------
-
-                    current_state = (
-                        st.session_state
-                        .interview_graph
-                        .get_state(
-
-                            {
-                                "configurable": {
-                                    "thread_id":
-                                        st.session_state.thread_id
-                                }
-                            }
-                        )
-                    )
-
-                    # -------------------------------------
-                    # Convert State
-                    # -------------------------------------
-
-                    state_values = dict(
-                        current_state.values
-                    )
-
-                    # -------------------------------------
-                    # Question Action
-                    # -------------------------------------
-
-                    state_values["action"] = "question"
-
-                    # -------------------------------------
-                    # Generate Question
-                    # -------------------------------------
-
-                    result = (
-                        st.session_state
-                        .interview_graph
-                        .invoke(
-
-                            state_values,
-
-                            config={
-                                "configurable": {
-                                    "thread_id":
-                                        st.session_state.thread_id
-                                }
-                            }
-                        )
-                    )
-
-                    # -------------------------------------
-                    # Save Question
-                    # -------------------------------------
-
-                    st.session_state.question = (
-                        result["question"]
-                    )
-
-                    # -------------------------------------
-                    # Clear Evaluation
-                    # -------------------------------------
-
-                    st.session_state.evaluation = ""
-
-                    # -------------------------------------
-                    # Increase Question Number
-                    # -------------------------------------
-
-                    st.session_state.question_number = (
-                        len(
-                            st.session_state.interview_history
-                        ) + 1
-                    )
-
-                st.success(
-                    "➡️ Next question generated!"
-                )
-
-        # -------------------------------------------------
-        # Interview Complete
-        # -------------------------------------------------
-
-        if len(
-            st.session_state.interview_history
-        ) >= 5:
-
-            st.success(
-                "🎉 You have completed all 5 "
-                "interview questions!"
-            )
-
-            st.info(
-                "Go to the 'Final Report' tab to generate "
-                "your complete interview report."
-            )
-
 
 # =========================================================
-# TAB 4 — FINAL REPORT
+# TAB 4
+# FINAL REPORT
 # =========================================================
 
 with tab4:
 
-    st.header("🏆 Final Interview Report")
+    st.header("📊 Final Interview Report")
+
+    # =====================================================
+    # GENERATE REPORT
+    # =====================================================
 
     if (
         st.session_state.interview_started
-        and len(
-            st.session_state.interview_history
-        ) >= 5
+        and len(st.session_state.interview_history) >= 5
     ):
-
-        st.write(
-            "Your interview is complete. Generate your "
-            "AI-powered performance report."
-        )
-
-        # -------------------------------------------------
-        # Generate Report
-        # -------------------------------------------------
 
         if st.button(
             "📊 Generate Final Report",
             use_container_width=True
         ):
 
+            config = {
+
+                "configurable": {
+
+                    "thread_id":
+                        st.session_state.thread_id
+                }
+            }
+
+            current_state = (
+                st.session_state.interview_graph
+                .get_state(config)
+                .values
+            )
+
+            current_state["action"] = "report"
+
             with st.spinner(
-                "🤖 Generating final interview report..."
+                "📊 Generating final interview report..."
             ):
 
-                # -----------------------------------------
-                # Get Saved State
-                # -----------------------------------------
+                try:
 
-                current_state = (
-                    st.session_state
-                    .interview_graph
-                    .get_state(
-
-                        {
-                            "configurable": {
-                                "thread_id":
-                                    st.session_state.thread_id
-                            }
-                        }
+                    result = (
+                        st.session_state.interview_graph
+                        .invoke(
+                            current_state,
+                            config=config
+                        )
                     )
-                )
 
-                # -----------------------------------------
-                # Convert State
-                # -----------------------------------------
+                except Exception as e:
 
-                state_values = dict(
-                    current_state.values
-                )
-
-                # -----------------------------------------
-                # Report Action
-                # -----------------------------------------
-
-                state_values["action"] = "report"
-
-                # -----------------------------------------
-                # Generate Report
-                # -----------------------------------------
-
-                result = (
-                    st.session_state
-                    .interview_graph
-                    .invoke(
-
-                        state_values,
-
-                        config={
-                            "configurable": {
-                                "thread_id":
-                                    st.session_state.thread_id
-                            }
-                        }
+                    st.error(
+                        "❌ Failed to generate final report."
                     )
-                )
 
-                # -----------------------------------------
-                # Save Report
-                # -----------------------------------------
+                    st.exception(e)
 
-                st.session_state.final_report = (
-                    result["final_report"]
-                )
+                    st.stop()
+
+            st.session_state.final_report = (
+                result["final_report"]
+            )
 
             st.success(
                 "✅ Final interview report generated!"
             )
 
-    elif st.session_state.interview_started:
-
-        st.info(
-            "🎤 Complete all 5 interview questions first."
-        )
-
-    else:
-
-        st.info(
-            "🎤 Start and complete an AI mock interview "
-            "to generate your final report."
-        )
-
-    # -----------------------------------------------------
-    # Display Final Report
-    # -----------------------------------------------------
+    # =====================================================
+    # DISPLAY REPORT
+    # =====================================================
 
     if st.session_state.final_report:
 
@@ -946,106 +971,209 @@ with tab4:
 
         st.divider()
 
-        st.subheader("📊 Performance Overview")
+        # =================================================
+        # SCORE CARDS
+        # =================================================
 
-        # ---------------------------------------------
-        # Score Cards
-        # ---------------------------------------------
+        st.subheader(
+            "🏆 Performance Overview"
+        )
 
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
 
             st.metric(
-                "🏆 Overall Score",
+                "Overall Score",
                 f"{report['overall_score']}/100"
             )
 
         with col2:
 
             st.metric(
-                "🧠 Technical Knowledge",
+                "Technical Knowledge",
                 f"{report['technical_knowledge']}/100"
             )
 
         with col3:
 
             st.metric(
-                "💡 Problem Solving",
+                "Problem Solving",
                 f"{report['problem_solving']}/100"
             )
 
         with col4:
 
             st.metric(
-                "🗣️ Communication",
+                "Communication",
                 f"{report['communication']}/100"
             )
 
-        # ---------------------------------------------
-        # Strengths
-        # ---------------------------------------------
+        st.divider()
 
-        st.subheader("💪 Strengths")
+        # =================================================
+        # PERFORMANCE
+        # =================================================
 
-        for strength in report["strengths"]:
+        st.subheader(
+            "📈 Performance Breakdown"
+        )
 
-            st.success(
-                f"✓ {strength}"
-            )
+        chart_data = {
 
-        # ---------------------------------------------
-        # Weaknesses
-        # ---------------------------------------------
+            "Technical Knowledge":
+                report["technical_knowledge"],
 
-        st.subheader("⚠️ Areas to Improve")
+            "Problem Solving":
+                report["problem_solving"],
 
-        for weakness in report["weaknesses"]:
+            "Communication":
+                report["communication"]
+        }
 
-            st.warning(
-                f"• {weakness}"
-            )
-
-        # ---------------------------------------------
-        # Topics
-        # ---------------------------------------------
-
-        st.subheader("📚 Recommended Topics")
-
-        for topic in report["topics_to_improve"]:
-
-            st.info(
-                f"📖 {topic}"
-            )
-
-        # ---------------------------------------------
-        # Recommendation
-        # ---------------------------------------------
-
-        st.subheader("🎯 Final Recommendation")
-
-        st.write(
-            report["final_recommendation"]
+        st.bar_chart(
+            chart_data,
+            height=350
         )
 
         st.divider()
 
-        st.subheader("📥 Download Report")
+        # =================================================
+        # STRENGTHS AND WEAKNESSES
+        # =================================================
 
-        pdf_file = create_pdf_report(
-            report,
-            "careerpilot_interview_report.pdf"
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            st.subheader(
+                "💪 Strengths"
+            )
+
+            if report["strengths"]:
+
+                for strength in report["strengths"]:
+
+                    st.success(
+                        f"✓ {strength}"
+                    )
+
+            else:
+
+                st.write(
+                    "No strengths identified."
+                )
+
+        with col2:
+
+            st.subheader(
+                "⚠️ Areas to Improve"
+            )
+
+            if report["weaknesses"]:
+
+                for weakness in report["weaknesses"]:
+
+                    st.warning(
+                        f"• {weakness}"
+                    )
+
+            else:
+
+                st.write(
+                    "No major weaknesses identified."
+                )
+
+        st.divider()
+
+        # =================================================
+        # TOPICS
+        # =================================================
+
+        st.subheader(
+            "📚 Recommended Topics"
         )
 
-        with open(pdf_file, "rb") as file:
+        if report["topics_to_improve"]:
 
-            st.download_button(
-                label="📄 Download Interview Report",
-                data=file,
-                file_name="careerpilot_interview_report.pdf",
-                mime="application/pdf",
-                use_container_width=True
+            for topic in report["topics_to_improve"]:
+
+                st.info(
+                    f"→ {topic}"
+                )
+
+        else:
+
+            st.write(
+                "No specific topics identified."
             )
+
+        st.divider()
+
+        # =================================================
+        # RECOMMENDATION
+        # =================================================
+
+        st.subheader(
+            "🎯 Final Recommendation"
+        )
+
+        st.markdown(
+            f"""
+            > {report["final_recommendation"]}
+            """
+        )
+
+        st.divider()
+
+        # =================================================
+        # PDF
+        # =================================================
+
+        st.subheader(
+            "📄 Interview Report PDF"
+        )
+
+        if st.button(
+            "📝 Create PDF Report",
+            use_container_width=True
+        ):
+
+            try:
+
+                pdf_filename = create_pdf_report(
+                    report
+                )
+
+                with open(
+                    pdf_filename,
+                    "rb"
+                ) as pdf_file:
+
+                    st.download_button(
+                        label="⬇️ Download Interview Report",
+                        data=pdf_file,
+                        file_name="careerpilot_interview_report.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Failed to create PDF report."
+                )
+
+                st.exception(e)
+
+    else:
+
+        st.info(
+            """
+            Complete the 5-question AI mock interview first.
+            Then generate your final performance report here.
+            """
+        )
 
 
 # =========================================================
@@ -1054,7 +1182,15 @@ with tab4:
 
 st.divider()
 
-st.caption(
-    "CareerPilot AI | Python • Streamlit • Gemini • "
-    "LangChain • LangGraph • SQLite"
+st.markdown(
+    """
+    <div style="text-align:center;">
+
+    <b>CareerPilot AI</b><br>
+
+    Agentic Resume & Interview Intelligence System
+
+    </div>
+    """,
+    unsafe_allow_html=True
 )

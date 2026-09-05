@@ -1,4 +1,4 @@
-from services.llm_service import get_llm
+from services.llm_service import get_llm, safe_invoke
 import json
 
 
@@ -58,18 +58,28 @@ Rules:
 - Do not invent information.
 """
 
-    response = llm.invoke(prompt)
+    report_text = safe_invoke(
+        llm,
+        prompt
+    )
 
-    report_text = response.content
+    report_text = report_text.replace(
+        "```json",
+        ""
+    )
 
-    # Remove markdown code fences if Gemini adds them
-    report_text = report_text.replace("```json", "")
-    report_text = report_text.replace("```", "")
+    report_text = report_text.replace(
+        "```",
+        ""
+    )
+
     report_text = report_text.strip()
 
     try:
 
-        report = json.loads(report_text)
+        report = json.loads(
+            report_text
+        )
 
         return report
 

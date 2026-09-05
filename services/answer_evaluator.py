@@ -1,4 +1,4 @@
-from services.llm_service import get_llm
+from services.llm_service import get_llm, safe_invoke
 
 
 def evaluate_answer(question, answer):
@@ -54,6 +54,7 @@ Important:
 - Focus on the candidate's actual answer.
 """
 
-    response = llm.invoke(prompt)
-
-    return response.content
+    return safe_invoke(
+        llm,
+        prompt
+    )

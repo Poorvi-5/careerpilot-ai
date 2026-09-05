@@ -1,4 +1,4 @@
-from services.llm_service import get_llm
+from services.llm_service import get_llm, safe_invoke
 
 
 def analyze_resume(resume_text):
@@ -28,6 +28,7 @@ Important:
 - Do not invent information.
 """
 
-    response = llm.invoke(prompt)
-
-    return response.content
+    return safe_invoke(
+        llm,
+        prompt
+    )

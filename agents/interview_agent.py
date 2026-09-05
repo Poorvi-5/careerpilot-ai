@@ -1,5 +1,4 @@
-
-from services.llm_service import get_llm
+from services.llm_service import get_llm, safe_invoke
 
 
 def generate_interview_question(
@@ -28,20 +27,37 @@ RELEVANT RESUME INFORMATION:
 PREVIOUS EVALUATION:
 {previous_evaluation}
 
-Rules:
-- Ask a technical interview question relevant to the job.
-- Use the relevant resume information when possible.
-- Focus on skills required by the job description.
-- If this is the first question, ask a medium-difficulty question.
-- If previous evaluation is available, adapt the next question
-  based on the candidate's weaknesses.
-- If the candidate performed well, slightly increase difficulty.
-- Do not repeat the previous question.
-- Do not provide the answer.
-- Do not invent candidate experience or skills.
-- Return only the question.
+Interview adaptation rules:
+
+1. If there is no previous evaluation:
+   - Ask a medium-difficulty technical question.
+
+2. If the previous answer was weak:
+   - Ask a simpler question.
+   - Focus on the topic the candidate struggled with.
+
+3. If the previous answer was average:
+   - Ask a similar-difficulty question.
+   - Test deeper understanding of the same or a related topic.
+
+4. If the previous answer was strong:
+   - Increase the difficulty.
+   - Ask a more advanced technical question.
+
+5. Always consider:
+   - Job description requirements.
+   - Candidate's actual resume.
+   - Retrieved resume information.
+
+6. Do not:
+   - Repeat the previous question.
+   - Invent candidate experience or skills.
+   - Provide the answer.
+
+Return ONLY the interview question.
 """
 
-    response = llm.invoke(prompt)
-
-    return response.content
+    return safe_invoke(
+        llm,
+        prompt
+    )
