@@ -7,6 +7,10 @@ class InterviewState(TypedDict):
 
     resume_analysis: str
 
+    vector_store: object
+
+    retrieved_context: str
+
     question: str
 
     answer: str

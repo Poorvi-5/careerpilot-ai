@@ -1,3 +1,4 @@
+
 import sqlite3
 
 from langgraph.graph import StateGraph, START, END
@@ -6,33 +7,27 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from graph.state import InterviewState
 
 from graph.nodes import (
+    retrieve_node,
     question_node,
     evaluation_node,
     report_node
 )
 
 
-# =========================================================
-# ROUTER
-# =========================================================
-
 def route_action(state: InterviewState):
 
     return state["action"]
 
 
-# =========================================================
-# CREATE INTERVIEW GRAPH
-# =========================================================
-
 def create_interview_graph():
 
     graph = StateGraph(InterviewState)
 
-
-    # =====================================================
-    # ADD NODES
-    # =====================================================
+    # Add nodes
+    graph.add_node(
+        "retrieve_context",
+        retrieve_node
+    )
 
     graph.add_node(
         "generate_question",
@@ -49,51 +44,42 @@ def create_interview_graph():
         report_node
     )
 
-
-    # =====================================================
-    # START → ROUTER
-    # =====================================================
-
+    # Route based on action
     graph.add_conditional_edges(
-
         START,
-
         route_action,
-
         {
-            "question": "generate_question",
-
+            "question": "retrieve_context",
             "evaluate": "evaluate_answer",
-
             "report": "generate_report"
         }
     )
 
+    # RAG → Question
+    graph.add_edge(
+        "retrieve_context",
+        "generate_question"
+    )
 
-    # =====================================================
-    # ALL NODES → END
-    # =====================================================
-
+    # Question generation ends here
     graph.add_edge(
         "generate_question",
         END
     )
 
+    # Evaluation ends here
     graph.add_edge(
         "evaluate_answer",
         END
     )
 
+    # Report ends here
     graph.add_edge(
         "generate_report",
         END
     )
 
-
-    # =====================================================
-    # SQLITE CHECKPOINTER
-    # =====================================================
-
+    # SQLite persistence
     conn = sqlite3.connect(
         "careerpilot_checkpoints.db",
         check_same_thread=False
@@ -101,14 +87,8 @@ def create_interview_graph():
 
     checkpointer = SqliteSaver(conn)
 
-
-    # =====================================================
-    # COMPILE GRAPH
-    # =====================================================
-
     interview_graph = graph.compile(
         checkpointer=checkpointer
     )
-
 
     return interview_graph

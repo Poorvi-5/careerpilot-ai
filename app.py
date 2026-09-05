@@ -3,6 +3,8 @@ import uuid
 import streamlit as st
 
 from services.resume_parser import extract_text_from_pdf
+from services.rag_service import create_vector_store
+from services.pdf_report import create_pdf_report
 from services.resume_analyzer import analyze_resume
 from services.jd_analyzer import analyze_job_description
 from services.skill_matcher import match_skills
@@ -90,6 +92,9 @@ if "interview_history" not in st.session_state:
 if "final_report" not in st.session_state:
     st.session_state.final_report = {}
 
+if "vector_store" not in st.session_state:
+    st.session_state.vector_store = None
+
 
 # =========================================================
 # SIDEBAR
@@ -135,6 +140,7 @@ tab1, tab2, tab3, tab4 = st.tabs(
         "🏆 Final Report"
     ]
 )
+
 
 
 # =========================================================
@@ -206,6 +212,18 @@ with tab1:
 
                 resume_text = extract_text_from_pdf(
                     resume
+                )
+
+            # ---------------------------------------------
+            # Create Resume Knowledge Base
+            # ---------------------------------------------
+
+            with st.spinner(
+                "🧠 Creating resume knowledge base..."
+            ):
+
+                st.session_state.vector_store = (
+                    create_vector_store(resume_text)
                 )
 
             # ---------------------------------------------
@@ -318,6 +336,7 @@ with tab1:
         st.write(
             st.session_state.skill_match
         )
+
 
 
 # =========================================================
@@ -444,6 +463,13 @@ with tab3:
 
                     "resume_analysis":
                         resume_analysis,
+
+                    "vector_store":
+                        st.session_state.vector_store,
+
+                    "retrieved_context": 
+                        "",
+
 
                     "question":
                         "",
@@ -1001,6 +1027,25 @@ with tab4:
         st.write(
             report["final_recommendation"]
         )
+
+        st.divider()
+
+        st.subheader("📥 Download Report")
+
+        pdf_file = create_pdf_report(
+            report,
+            "careerpilot_interview_report.pdf"
+        )
+
+        with open(pdf_file, "rb") as file:
+
+            st.download_button(
+                label="📄 Download Interview Report",
+                data=file,
+                file_name="careerpilot_interview_report.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
 
 
 # =========================================================
